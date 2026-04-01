@@ -5,6 +5,14 @@ import json
 from pathlib import Path
 
 
+def minutes_to_hhmm(minutes: int) -> str:
+    """Convert minutes since midnight to 'H:MM AM/PM' format."""
+    h, m = divmod(minutes, 60)
+    period = "AM" if h < 12 else "PM"
+    h = h % 12 or 12
+    return f"{h}:{m:02d} {period}"
+
+
 # -------------------------
 # Data Models
 # -------------------------
@@ -216,29 +224,34 @@ class Scheduler:
         return selected, explanation
 
     def sort_by_time(self, tasks: List[Task]) -> List[Task]:
-        """Return tasks sorted by start time (earliest first)."""
-        return sorted(tasks, key=lambda t: t.time)
+        """Return tasks sorted by start time (earliest first).
+        Tiebreaker: higher priority first, then pet name alphabetically."""
+        return sorted(tasks, key=lambda t: (t.time, -t.priority_rank, t.pet_name))
 
     def filter_by_completed(self, tasks: List[Task], completed: bool) -> List[Task]:
         """Return only tasks whose completed status matches the given value."""
         return [t for t in tasks if t.completed == completed]
 
+    def filter_by_pet(self, tasks: List[Task], pet_name: str) -> List[Task]:
+        """Return only tasks assigned to the given pet name."""
+        return [t for t in tasks if t.pet_name == pet_name]
+
     def mark_task_complete(self, owner: Owner, task_number: int) -> bool:
         """
         Marks a task complete by task_number.
-        If the task is daily or weekly, creates the next occurrence on the same pet.
+        For daily, weekly, or monthly tasks, creates the next occurrence on the same pet.
         Returns True if found and marked; False otherwise.
         """
+        frequency_days = {"daily": 1, "weekly": 7, "monthly": 30}
+
         for pet in owner.pets:
             for task in pet.tasks:
                 if task.number == task_number:
                     task.mark_complete()
 
-                    # Schedule next occurrence for recurring tasks
-                    if task.frequency in ("daily", "weekly"):
-                        days = 1 if task.frequency == "daily" else 7
+                    days = frequency_days.get(task.frequency)
+                    if days is not None:
                         next_due = task.due_date + timedelta(days=days)
-
                         next_task = Task(
                             description=task.description,
                             duration_minutes=task.duration_minutes,
@@ -257,20 +270,24 @@ class Scheduler:
     def detect_conflicts(self, tasks: List[Task]) -> List[str]:
         """
         Returns warning messages for any overlapping tasks.
+        Compares every pair so non-adjacent overlaps are not missed.
         Does not raise errors or stop execution.
         """
         warnings: List[str] = []
         tasks_sorted = sorted(tasks, key=lambda t: t.time)
 
-        for i in range(len(tasks_sorted) - 1):
-            current = tasks_sorted[i]
-            nxt = tasks_sorted[i + 1]
-
-            current_end = current.time + current.duration_minutes
-            if nxt.time < current_end:
+        for i in range(len(tasks_sorted)):
+            for j in range(i + 1, len(tasks_sorted)):
+                a = tasks_sorted[i]
+                b = tasks_sorted[j]
+                # b starts at or after a ends — no overlap possible for later j either
+                if b.time >= a.time + a.duration_minutes:
+                    break
                 warnings.append(
-                    f"Time conflict: '{current.description}' ({current.pet_name}) "
-                    f"overlaps with '{nxt.description}' ({nxt.pet_name})."
+                    f"⚠ Time conflict: '{a.description}' ({a.pet_name}) "
+                    f"{minutes_to_hhmm(a.time)}–{minutes_to_hhmm(a.time + a.duration_minutes)} "
+                    f"overlaps '{b.description}' ({b.pet_name}) "
+                    f"starting {minutes_to_hhmm(b.time)}."
                 )
 
         return warnings

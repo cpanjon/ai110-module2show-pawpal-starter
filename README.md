@@ -22,6 +22,15 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+The scheduler was extended with four algorithmic improvements beyond the basic plan generator:
+
+- **Sort by time** — `Scheduler.sort_by_time()` orders tasks by start time, with priority and pet name as tiebreakers so the output is always deterministic.
+- **Filter by pet or status** — `filter_by_pet()` and `filter_by_completed()` let you slice the task list without modifying it, making it easy to show only one pet's tasks or only pending work.
+- **Recurring task auto-spawn** — when `mark_task_complete()` is called on a daily, weekly, or monthly task, a new instance is automatically created with the next due date calculated using Python's `timedelta`. Monthly tasks advance 30 days; daily tasks advance 1 day.
+- **Full conflict detection** — `detect_conflicts()` compares every task pair (not just adjacent ones) so overlaps are never silently missed. Warnings include readable time ranges (e.g. `7:00 AM–7:30 AM`) and do not crash the program, letting the owner decide how to resolve them.
+
 ## Getting started
 
 ### Setup
