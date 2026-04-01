@@ -1,6 +1,8 @@
 import streamlit as st
 from pawpal_system import Owner, Pet, Task, Scheduler
 
+DATA_FILE = "data.json"
+
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
 st.title("🐾 PawPal+")
@@ -8,7 +10,9 @@ st.title("🐾 PawPal+")
 # --- Session State Initialization ---
 # Each key is only created once per browser session; reruns skip these blocks.
 if "owner" not in st.session_state:
-    st.session_state.owner = None
+    # Load persisted data on first run; fall back to None if file is missing/empty.
+    loaded = Owner.load_from_json(DATA_FILE)
+    st.session_state.owner = loaded[0] if loaded else None
 
 if "scheduler" not in st.session_state:
     st.session_state.scheduler = Scheduler()
@@ -24,6 +28,7 @@ daily_minutes = st.number_input("Minutes available today", min_value=10, max_val
 if st.button("Save Owner"):
     # Build a fresh Owner and store it in the session vault.
     st.session_state.owner = Owner(name=owner_name, daily_time_available=int(daily_minutes))
+    Owner.save_to_json([st.session_state.owner], DATA_FILE)
     st.success(f"Owner '{owner_name}' saved with {daily_minutes} minutes available.")
 
 if st.session_state.owner is None:
@@ -53,6 +58,7 @@ if st.button("Add Pet"):
         # Pet.add_task / Owner.add_pet are the class methods that handle this.
         new_pet = Pet(name=pet_name, species=species)
         owner.add_pet(new_pet)          # <-- Owner.add_pet() stores the Pet object
+        Owner.save_to_json([owner], DATA_FILE)
         st.success(f"Added {species} '{pet_name}'.")
 
 # Show current pets so the UI reflects the change immediately.
@@ -101,6 +107,7 @@ if st.button("Add Task"):
         frequency=task_frequency,
     )
     target_pet.add_task(new_task)       # <-- Pet.add_task() appends to the pet's task list
+    Owner.save_to_json([owner], DATA_FILE)
     st.success(f"Task '{task_title}' added to {task_pet}.")
 
 # Show all current tasks grouped by pet.
