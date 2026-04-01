@@ -31,6 +31,28 @@ The scheduler was extended with four algorithmic improvements beyond the basic p
 - **Recurring task auto-spawn** — when `mark_task_complete()` is called on a daily, weekly, or monthly task, a new instance is automatically created with the next due date calculated using Python's `timedelta`. Monthly tasks advance 30 days; daily tasks advance 1 day.
 - **Full conflict detection** — `detect_conflicts()` compares every task pair (not just adjacent ones) so overlaps are never silently missed. Warnings include readable time ranges (e.g. `7:00 AM–7:30 AM`) and do not crash the program, letting the owner decide how to resolve them.
 
+## Testing PawPal+
+
+Run the full test suite with:
+
+```bash
+python -m pytest tests/test_pawpal.py -v
+```
+
+**What the tests cover (24 tests total):**
+
+| Area | Tests |
+|---|---|
+| Sorting | Chronological order, priority tiebreaker, empty list |
+| Filtering | By pet name, by completion status, no-match edge cases |
+| Recurring tasks | Daily (+1 day), weekly (+7 days), monthly (+30 days), field preservation, unknown task number |
+| Conflict detection | Exact same time, partial overlap, non-adjacent overlap, sequential (no false positive), empty/single list |
+| Schedule generation | Skips completed tasks, respects time budget, empty pet, priority ordering |
+
+**Confidence level: ★★★★☆**
+
+Core scheduling logic is well covered. The main gap is the Streamlit UI layer (`app.py`), which is not tested — UI interactions would require an integration testing tool like Playwright.
+
 ## Getting started
 
 ### Setup
